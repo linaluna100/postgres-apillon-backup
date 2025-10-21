@@ -1,0 +1,77 @@
+---
+version: "2.0"
+services:
+  postgres:
+    image: postgres:15-alpine
+    expose:
+      - port: 5432
+        as: 5432
+        to:
+          - global: true
+          - service: backup
+    env:
+      - POSTGRES_DB=mydatabase
+      - POSTGRES_USER=myuser
+      - POSTGRES_PASSWORD=mypassword
+    params:
+      storage:
+        shm:
+          mount: /var/lib/postgres
+          readOnly: false
+  backup:
+    image: linaluna/postgres-apillon-backup:0.0.8
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+    env:
+      - BACKUP_INTERVAL=43200
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=mydatabase
+      - POSTGRES_USER=myuser
+      - POSTGRES_PASSWORD=mypassword
+      - APILLON_BASIC_AUTH=APILLON_BASIC_AUTH
+      - APILLON_BUCKET_UUID=APILLON_BUCKET_UUID
+profiles:
+  compute:
+    postgres:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 1Gi
+        storage:
+          - size: 1Gi
+          - name: shm
+            size: 1Gi
+            attributes:
+              persistent: false
+              class: ram
+    backup:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 1Gi
+        storage:
+          - size: 1Gi
+  placement:
+    dcloud:
+      pricing:
+        postgres:
+          denom: uakt
+          amount: 100000
+        backup:
+          denom: uakt
+          amount: 100000
+deployment:
+  postgres:
+    dcloud:
+      profile: postgres
+      count: 1
+  backup:
+    dcloud:
+      profile: backup
+      count: 1
